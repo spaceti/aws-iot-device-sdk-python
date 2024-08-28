@@ -1,0 +1,13 @@
+Package: python-aws-iot-device-sdk
+Version: @VER@-r0.0
+Description: python-aws-iot-device-sdk version @VER@-r0
+ SDK for connecting to AWS IoT from a device using Python.
+Section: base
+Priority: optional
+Maintainer: MultiTech Systems <oe-devel@multitech.net>
+License: Apache-2.0
+Architecture: arm926ejste
+OE: python-aws-iot-device-sdk
+Homepage: https://github.com/aws/aws-iot-device-sdk-python
+Depends: python-core
+Source: git://github.com/aws/aws-iot-device-sdk-python.git

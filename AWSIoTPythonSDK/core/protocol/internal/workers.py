@@ -26,12 +26,14 @@ from AWSIoTPythonSDK.core.protocol.paho.client import topic_matches_sub
 from AWSIoTPythonSDK.core.protocol.internal.defaults import DEFAULT_DRAINING_INTERNAL_SEC
 
 
+STOP_ME = 'Stop Me'
+
+
 class EventProducer(object):
 
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, cv, event_queue):
-        self._cv = cv
+    def __init__(self, event_queue):
         self._event_queue = event_queue
 
     def on_connect(self, client, user_data, flags, rc):
@@ -59,19 +61,15 @@ class EventProducer(object):
         self._logger.debug("Produced [message] event")
 
     def _add_to_queue(self, mid, event_type, data):
-        with self._cv:
-            self._event_queue.put((mid, event_type, data))
-            self._cv.notify()
+        self._event_queue.put((mid, event_type, data))
 
 
 class EventConsumer(object):
 
-    MAX_DISPATCH_INTERNAL_SEC = 0.01
     _logger = logging.getLogger(__name__)
 
-    def __init__(self, cv, event_queue, internal_async_client,
+    def __init__(self, event_queue, internal_async_client,
                  subscription_manager, offline_requests_manager, client_status):
-        self._cv = cv
         self._event_queue = event_queue
         self._internal_async_client = internal_async_client
         self._subscription_manager = subscription_manager
@@ -118,6 +116,7 @@ class EventConsumer(object):
         if self._is_running:
             self._is_running = False
             self._clean_up()
+            self._event_queue.put((STOP_ME, None, None))
         self._logger.debug("Event consuming thread stopped")
 
     def _clean_up(self):
@@ -139,23 +138,18 @@ class EventConsumer(object):
 
     def _dispatch(self):
         while self._is_running:
-            with self._cv:
-                if self._event_queue.empty():
-                    self._cv.wait(self.MAX_DISPATCH_INTERNAL_SEC)
-                else:
-                    while not self._event_queue.empty():
-                        self._dispatch_one()
+            mid, event_type, data = self._event_queue.get()
+            if mid:
+                if mid == STOP_ME:
+                    break
+                self._dispatch_methods[event_type](mid, data)
+                self._internal_async_client.invoke_event_callback(mid, data=data)
+                # We need to make sure disconnect event gets dispatched and then we stop the consumer
+                if self._need_to_stop_dispatching(mid):
+                    self.stop()
+
         self._stopper.set()
         self._logger.debug("Exiting dispatching loop...")
-
-    def _dispatch_one(self):
-        mid, event_type, data = self._event_queue.get()
-        if mid:
-            self._dispatch_methods[event_type](mid, data)
-            self._internal_async_client.invoke_event_callback(mid, data=data)
-            # We need to make sure disconnect event gets dispatched and then we stop the consumer
-            if self._need_to_stop_dispatching(mid):
-                self.stop()
 
     def _need_to_stop_dispatching(self, mid):
         status = self._client_status.get_status()

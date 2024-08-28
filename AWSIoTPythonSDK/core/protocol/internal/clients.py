@@ -16,7 +16,6 @@
 import ssl
 import logging
 from threading import Lock
-from numbers import Number
 import AWSIoTPythonSDK.core.protocol.paho.client as mqtt
 from AWSIoTPythonSDK.core.protocol.paho.client import MQTT_ERR_SUCCESS
 from AWSIoTPythonSDK.core.protocol.internal.events import FixedEventMids
@@ -222,7 +221,7 @@ class InternalAsyncMqttClient(object):
                 event_callback(mid=mid, data=data)
             else:
                 event_callback(mid=mid)
-            if isinstance(mid, Number):  # Do NOT remove callbacks for CONNACK/DISCONNECT/MESSAGE
+            if isinstance(mid, int):  # Do NOT remsove callbacks for CONNACK/DISCONNECT/MESSAGE
                 self._logger.debug("This custom event callback is for pub/sub/unsub, removing it after invocation...")
                 with self._event_callback_map_lock:
                     del self._event_callback_map[mid]

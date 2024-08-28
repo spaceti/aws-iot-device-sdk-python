@@ -68,14 +68,12 @@ class MqttCore(object):
         self._password = None
         self._enable_metrics_collection = True
         self._event_queue = Queue()
-        self._event_cv = Condition()
-        self._event_producer = EventProducer(self._event_cv, self._event_queue)
+        self._event_producer = EventProducer(self._event_queue)
         self._client_status = ClientStatusContainer()
         self._internal_async_client = InternalAsyncMqttClient(client_id, clean_session, protocol, use_wss)
         self._subscription_manager = SubscriptionManager()
         self._offline_requests_manager = OfflineRequestsManager(-1, DropBehaviorTypes.DROP_NEWEST)  # Infinite queue
-        self._event_consumer = EventConsumer(self._event_cv,
-                                             self._event_queue,
+        self._event_consumer = EventConsumer(self._event_queue,
                                              self._internal_async_client,
                                              self._subscription_manager,
                                              self._offline_requests_manager,
